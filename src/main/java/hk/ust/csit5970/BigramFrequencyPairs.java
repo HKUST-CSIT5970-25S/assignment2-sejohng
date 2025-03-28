@@ -1,7 +1,11 @@
+ /**
+ * This is the homework of CSIT 5970 student JIANG Shijun, 21134775	
+ */
 package hk.ust.csit5970;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator; 
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -53,6 +57,18 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			for (int i=0; i<words.length-1; i++) {
+
+				if (words[i].isEmpty()) {
+					continue;
+				}
+				BIGRAM.set(words[i],"");
+				context.write(BIGRAM, ONE);  // Emit bigram with empty second element (for single-word counting)
+
+				BIGRAM.set(words[i],words[i+1]);
+				context.write(BIGRAM, ONE);  // Emit bigram with the current word and the next word in the list
+
+			}
 		}
 	}
 
@@ -64,6 +80,7 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 
 		// Reuse objects.
 		private final static FloatWritable VALUE = new FloatWritable();
+		private static float leftWordFrequency = 0;
 
 		@Override
 		public void reduce(PairOfStrings key, Iterable<IntWritable> values,
@@ -71,6 +88,22 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+				float accumulatedSum = 0; 
+
+			        // Loop through the list and sum the values
+       				 for (IntWritable value : values) {
+           			 accumulatedSum += value.get();  // Sum up the values
+        			}
+
+       				 // Check if the current key corresponds to the left element
+       				 if (key.getRightElement().toString().isEmpty()) {  // Left element
+           				 leftWordFrequency = accumulatedSum;  // Store the frequency of the left word
+            			       	VALUE.set(leftWordFrequency);  // Set the value to be written
+           				 context.write(key, VALUE);  // Write the output
+       				 } else {  // Right element (bigram calculation)
+           				 VALUE.set(accumulatedSum / leftWordFrequency);  // Calculate P(B|A)
+            					context.write(key, VALUE);  // Write the output
+       					 }
 		}
 	}
 	
@@ -84,6 +117,17 @@ public class BigramFrequencyPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+				int accumulatedSum = 0;
+
+       				 Iterator<IntWritable> iter = values.iterator();
+       				 for (int i = 0; iter.hasNext(); i++) {  // Iterate over the provided values and accumulate the sum
+           				 IntWritable value = iter.next();
+           				 accumulatedSum += value.get();
+        				}
+       				 SUM.set(accumulatedSum);
+				// Set the accumulated sum to the SUM writable
+
+       				 context.write(key, SUM);
 		}
 	}
 

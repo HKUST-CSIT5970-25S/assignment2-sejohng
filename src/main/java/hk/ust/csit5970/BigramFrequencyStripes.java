@@ -1,8 +1,12 @@
+/**
+ * This is the homework of CSIT 5970 student JIANG Shijun, 21134775
+ */
 package hk.ust.csit5970;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -54,6 +58,24 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+							if (words.length > 1) {
+				// Start iterating over the words
+				for (int i = 0; i < words.length - 1; i++) {
+					String firstWord = words[i];
+					String secondWord = words[i + 1];
+										
+					// Initialize the stripe for the current word pair
+						STRIPE.clear(); // Clear previous data
+										
+					// Add count for the second word
+						STRIPE.increment(secondWord);
+										
+					// Set the first word as the key and emit the stripe
+						KEY.set(firstWord);
+						context.write(KEY, STRIPE);
+				}
+			}
+
 		}
 	}
 
@@ -75,6 +97,31 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+				SUM_STRIPES.clear(); // Initialize the sum container for this key
+					
+				// Sum all the stripes from different mappers
+							for (HashMapStringIntWritable stripe : stripes) {
+									SUM_STRIPES.plus(stripe);
+							}
+					
+				// iterate over the stripe entries to emit bigrams with their frequency
+							int totalPrefixCount = SUM_STRIPES.get(" ");
+							for (Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
+								String secondWord = entry.getKey();
+								int count = entry.getValue();
+									
+				// Handle the case where second word is empty
+								if (secondWord.equals(" ")) {
+										FREQ.set((float) count);
+								} else {
+										// Calculate frequency P(B|A) = count(A,B) / count(A)
+										FREQ.set((float) count / totalPrefixCount);
+								}
+									
+								// Set the bigram pair and write the result
+								BIGRAM.set(key.toString(), secondWord);
+								context.write(BIGRAM, FREQ);
+			}
 		}
 	}
 
@@ -94,6 +141,16 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			// Accumulate counts from multiple mapper outputs
+				SUM_STRIPES.clear(); // Initialize
+				
+						// Aggregate the stripes
+				for (HashMapStringIntWritable stripe : stripes) {
+			 				SUM_STRIPES.plus(stripe);
+						}
+					
+						// Write the aggregated stripe back
+				context.write(key, SUM_STRIPES);
 		}
 	}
 
