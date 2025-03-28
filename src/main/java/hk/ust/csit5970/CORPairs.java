@@ -46,6 +46,8 @@ public class CORPairs extends Configured implements Tool {
 	 */
 	private static class CORMapper1 extends
 			Mapper<LongWritable, Text, Text, IntWritable> {
+				private static final IntWritable ONE = new IntWritable(1);
+				private static final Text KEY = new Text();
 		@Override
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
@@ -56,6 +58,11 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			while (doc_tokenizer.hasMoreTokens()) {
+								String word = doc_tokenizer.nextToken();
+								KEY.set(word);
+								context.write(KEY, ONE);  
+					}
 		}
 	}
 
@@ -64,11 +71,19 @@ public class CORPairs extends Configured implements Tool {
 	 */
 	private static class CORReducer1 extends
 			Reducer<Text, IntWritable, Text, IntWritable> {
-		@Override
+			private static final IntWritable SUM = new IntWritable();	
+	@Override
 		public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+				for (IntWritable val : values) {
+					sum += val.get();
+						}
+				SUM.set(sum);
+				context.write(key, SUM);  // output the total frequency of each word
+
 		}
 	}
 
@@ -77,13 +92,27 @@ public class CORPairs extends Configured implements Tool {
 	 * TODO: Write your second-pass Mapper here.
 	 */
 	public static class CORPairsMapper2 extends Mapper<LongWritable, Text, PairOfStrings, IntWritable> {
-		@Override
+		private static final IntWritable ONE = new IntWritable(1);	
+	@Override
 		protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 			// Please use this tokenizer! DO NOT implement a tokenizer by yourself!
 			StringTokenizer doc_tokenizer = new StringTokenizer(value.toString().replaceAll("[^a-z A-Z]", " "));
+			String prevWord = null;
+
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			while (doc_tokenizer.hasMoreTokens()) {
+						String word = doc_tokenizer.nextToken();
+						if (prevWord != null) {
+							// output word pairs (A, B) or (B, A), ensuring they are in alphabetical order
+							String firstWord = prevWord.compareTo(word) < 0 ? prevWord : word;
+							String secondWord = prevWord.compareTo(word) < 0 ? word : prevWord;
+							PairOfStrings pair = new PairOfStrings(firstWord, secondWord);
+							context.write(pair, ONE);
+						}
+						prevWord = word;  // update the prev one
+					}					
 		}
 	}
 
@@ -91,11 +120,21 @@ public class CORPairs extends Configured implements Tool {
 	 * TODO: Write your second-pass Combiner here.
 	 */
 	private static class CORPairsCombiner2 extends Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
-		@Override
+		private static final IntWritable SUM = new IntWritable();
+	
+	@Override
 		protected void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+							
+							for (IntWritable value : values) {
+								sum += value.get();
+							}
+							SUM.set(sum);  
+							context.write(key, SUM);
+					}
 		}
 	}
 
@@ -104,6 +143,7 @@ public class CORPairs extends Configured implements Tool {
 	 */
 	public static class CORPairsReducer2 extends Reducer<PairOfStrings, IntWritable, PairOfStrings, DoubleWritable> {
 		private final static Map<String, Integer> word_total_map = new HashMap<String, Integer>();
+		private final static DoubleWritable correlationCoefficient = new DoubleWritable();
 
 		/*
 		 * Preload the middle result file.
@@ -148,8 +188,27 @@ public class CORPairs extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+				double pairCount = 0;
+					Iterator<IntWritable> countIterator = values.iterator();
+					while (countIterator.hasNext()) {
+						pairCount += countIterator.next().get();
+					}
+		
+					String wordA = key.getLeftElement();
+					String wordB = key.getRightElement();
+			
+					if (!word_total_map.containsKey(wordA) || !word_total_map.containsKey(wordB)) {
+						return; 
+					}
+			
+					double corValue = pairCount / (word_total_map.get(wordA) * word_total_map.get(wordB));
+			
+					correlationCoefficient.set((float) corValue); 
+			
+					context.write(key, correlationCoefficient);
 		}
 	}
+  
 
 	private static final class MyPartitioner extends Partitioner<PairOfStrings, FloatWritable> {
 		@Override
