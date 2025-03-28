@@ -1,3 +1,6 @@
+/**
+ * This is the homework of CSIT 5970 student JIANG Shijun, 21134775
+ */
 package hk.ust.csit5970;
 
 import org.apache.commons.cli.*;
