@@ -101,16 +101,20 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 				SUM_STRIPES.clear(); // Initialize the sum container for this key
 					
 				// Sum all the stripes from different mappers
-							for (HashMapStringIntWritable stripe : stripes) {
-									SUM_STRIPES.plus(stripe);
-							}
-					
+				for (HashMapStringIntWritable stripe : stripes) {
+         			   if (stripe != null) {
+              				  SUM_STRIPES.plus(stripe);
+        				    }
+      				  }
 				// iterate over the stripe entries to emit bigrams with their frequency
-							int totalPrefixCount = SUM_STRIPES.get(" ");
-							for (Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
-								String secondWord = entry.getKey();
-								int count = entry.getValue();
-									
+				        Integer totalPrefixCount = SUM_STRIPES.get(" ");
+       					 if (totalPrefixCount == null || totalPrefixCount == 0) {
+            				return; // Avoid division by zero
+       				 }
+				        // Iterate over the stripe entries to emit bigrams with their frequency
+      					  for (Map.Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
+           				 String secondWord = entry.getKey();
+           				 int count = entry.getValue();
 				// Handle the case where second word is empty
 								if (secondWord.equals(" ")) {
 										FREQ.set((float) count);
