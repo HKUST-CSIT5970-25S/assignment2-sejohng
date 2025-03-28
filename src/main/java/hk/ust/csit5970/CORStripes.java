@@ -33,6 +33,10 @@ public class CORStripes extends Configured implements Tool {
 	 */
 	private static class CORMapper1 extends
 			Mapper<LongWritable, Text, Text, IntWritable> {
+				
+				private static final IntWritable ONE = new IntWritable(1);
+				private static final Text KEY = new Text();
+				
 		@Override
 		public void map(LongWritable key, Text value, Context context)
 				throws IOException, InterruptedException {
@@ -43,6 +47,11 @@ public class CORStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+					while (doc_tokenizer.hasMoreTokens()) {
+						String word = doc_tokenizer.nextToken();
+						KEY.set(word);
+						context.write(KEY, ONE);
+					}
 		}
 	}
 
@@ -51,11 +60,20 @@ public class CORStripes extends Configured implements Tool {
 	 */
 	private static class CORReducer1 extends
 			Reducer<Text, IntWritable, Text, IntWritable> {
+				
+				private static final IntWritable SUM = new IntWritable();
+				
 		@Override
 		public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			int sum = 0;
+			for (IntWritable val : values) {
+				sum += val.get();
+			}
+			SUM.set(sum);
+			context.write(key, SUM);  // output the total frequency of each word
 		}
 	}
 
@@ -63,6 +81,9 @@ public class CORStripes extends Configured implements Tool {
 	 * TODO: Write your second-pass Mapper here.
 	 */
 	public static class CORStripesMapper2 extends Mapper<LongWritable, Text, Text, MapWritable> {
+		
+		private static final MapWritable word_stripes = new MapWritable();
+		
 		@Override
 		protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
 			Set<String> sorted_word_set = new TreeSet<String>();
@@ -75,6 +96,17 @@ public class CORStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			Iterator<String> iterator = sorted_word_set.iterator();
+			while (iterator.hasNext()) {
+				String word1 = iterator.next();
+				for (String word2 : sorted_word_set) {
+					if (!word1.equals(word2)) {
+						// Create a map for each word pair (word1, word2) with frequency 1
+						word_stripes.put(new Text(word2), new IntWritable(1));
+					}
+				}
+				context.write(new Text(word1), word_stripes);
+			}
 		}
 	}
 
@@ -89,6 +121,15 @@ public class CORStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			MapWritable combined_map = new MapWritable();
+			for (MapWritable value : values) {
+				for (Map.Entry<Writable, Writable> entry : value.entrySet()) {
+					Text word = (Text) entry.getKey();
+					IntWritable count = (IntWritable) entry.getValue();
+					combined_map.put(word, count);
+				}
+			}
+			context.write(key, combined_map);
 		}
 	}
 
@@ -98,7 +139,7 @@ public class CORStripes extends Configured implements Tool {
 	public static class CORStripesReducer2 extends Reducer<Text, MapWritable, PairOfStrings, DoubleWritable> {
 		private static Map<String, Integer> word_total_map = new HashMap<String, Integer>();
 		private static IntWritable ZERO = new IntWritable(0);
-
+		private static final DoubleWritable correlationCoefficient = new DoubleWritable();
 		/*
 		 * Preload the middle result file.
 		 * In the middle result file, each line contains a word and its frequency Freq(A), seperated by "\t"
@@ -142,6 +183,34 @@ public class CORStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
+			double pairCount = 0;
+			for (MapWritable value : values) {
+				for (Map.Entry<Writable, Writable> entry : value.entrySet()) {
+					IntWritable count = (IntWritable) entry.getValue();
+					pairCount += count.get();
+				}
+			}
+			
+			String wordA = key.toString();
+			Iterator<Map.Entry<Writable, Writable>> iterator = values.iterator().next().entrySet().iterator();
+			while (iterator.hasNext()) {
+				Map.Entry<Writable, Writable> entry = iterator.next();
+				String wordB = ((Text) entry.getKey()).toString();
+				
+				if (!word_total_map.containsKey(wordA) || !word_total_map.containsKey(wordB)) {
+					continue; 
+				}
+				
+				double freqA = word_total_map.get(wordA);
+				double freqB = word_total_map.get(wordB);
+				
+				// correlation coefficient
+				double corValue = pairCount / (freqA * freqB);
+				
+				// output the word pair and the correlation coefficient
+				correlationCoefficient.set(corValue);
+				context.write(new PairOfStrings(wordA, wordB), correlationCoefficient);
+			}
 		}
 	}
 
