@@ -183,34 +183,42 @@ public class CORStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
-			double pairCount = 0;
-			for (MapWritable value : values) {
-				for (Map.Entry<Writable, Writable> entry : value.entrySet()) {
-					IntWritable count = (IntWritable) entry.getValue();
-					pairCount += count.get();
-				}
-			}
+			MapWritable combinedStripe = new MapWritable();
 			
-			String wordA = key.toString();
-			Iterator<Map.Entry<Writable, Writable>> iterator = values.iterator().next().entrySet().iterator();
-			while (iterator.hasNext()) {
-				Map.Entry<Writable, Writable> entry = iterator.next();
-				String wordB = ((Text) entry.getKey()).toString();
-				
-				if (!word_total_map.containsKey(wordA) || !word_total_map.containsKey(wordB)) {
-					continue; 
+				for (MapWritable stripe : values) {
+
+					for (Map.Entry<Writable, Writable> entry : stripe.entrySet()) {
+						Writable wordPair = entry.getKey();
+						IntWritable currentFrequency = (IntWritable) combinedStripe.get(wordPair);
+						
+						// If the word pair isn't found in the combined map, initialize it; otherwise, increment its frequency
+						if (currentFrequency == null) {
+							combinedStripe.put(wordPair, new IntWritable(((IntWritable) entry.getValue()).get()));
+						} else {
+							currentFrequency.set(currentFrequency.get() + ((IntWritable) entry.getValue()).get());
+						}
+					}
 				}
-				
-				double freqA = word_total_map.get(wordA);
-				double freqB = word_total_map.get(wordB);
-				
-				// correlation coefficient
-				double corValue = pairCount / (freqA * freqB);
-				
-				// output the word pair and the correlation coefficient
-				correlationCoefficient.set(corValue);
-				context.write(new PairOfStrings(wordA, wordB), correlationCoefficient);
-			}
+			
+				String word1 = key.toString();
+		
+				Integer word1Frequency = word_total_map.get(word1.toLowerCase());
+			
+				if (word1Frequency != null) {
+					// For each word pair in the combined stripe, calculate the correlation coefficient
+					for (Map.Entry<Writable, Writable> entry : combinedStripe.entrySet()) {
+						String word2 = entry.getKey().toString();
+						Integer word2Frequency = word_total_map.get(word2.toLowerCase());
+						
+						// Calculate the correlation coefficient only if word2 exists and word1 < word2 to avoid duplicates
+						if (word2Frequency != null && word1.compareTo(word2) < 0) {
+			
+							double correlation = ((IntWritable) entry.getValue()).get() / (double) (word1Frequency * word2Frequency);
+							
+							context.write(new PairOfStrings(word1, word2), new DoubleWritable(correlation));
+						}
+					}
+				}
 		}
 	}
 
