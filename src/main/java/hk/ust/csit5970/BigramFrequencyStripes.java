@@ -69,8 +69,9 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 						STRIPE.clear(); // Clear previous data
 										
 					// Add count for the second word
-						STRIPE.increment(secondWord);
-										
+					STRIPE.increment(secondWord);
+						STRIPE.increment("__TOTAL__");
+
 					// Set the first word as the key and emit the stripe
 						KEY.set(firstWord);
 						context.write(KEY, STRIPE);
@@ -107,22 +108,20 @@ public class BigramFrequencyStripes extends Configured implements Tool {
         				    }
       				  }
 				// iterate over the stripe entries to emit bigrams with their frequency
-				        Integer totalPrefixCount = SUM_STRIPES.get(" ");
-       					 if (totalPrefixCount == null || totalPrefixCount == 0) {
-            				return; // Avoid division by zero
-       				 }
+					Integer totalCount = SUM_STRIPES.get("__TOTAL__");
+						if (totalCount == null || totalCount == 0) {
+						return; // Avoid division by zero
+							}
 				        // Iterate over the stripe entries to emit bigrams with their frequency
       					  for (Map.Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
            				 String secondWord = entry.getKey();
            				 int count = entry.getValue();
 				// Handle the case where second word is empty
-								if (secondWord.equals(" ")) {
-										FREQ.set((float) count);
-								} else {
-										// Calculate frequency P(B|A) = count(A,B) / count(A)
-										FREQ.set((float) count / totalPrefixCount);
-								}
-									
+					if (secondWord.equals("__TOTAL__")) {
+						continue; // Skip this meta entry
+						}
+					FREQ.set((float) count / totalCount);
+
 								// Set the bigram pair and write the result
 								BIGRAM.set(key.toString(), secondWord);
 								context.write(BIGRAM, FREQ);
