@@ -112,6 +112,10 @@ public class BigramFrequencyStripes extends Configured implements Tool {
 						if (totalCount == null || totalCount == 0) {
 						return; // Avoid division by zero
 							}
+
+					BIGRAM.set(key.toString(), " ");
+					FREQ.set((float) totalCount);
+					context.write(BIGRAM, FREQ);
 				        // Iterate over the stripe entries to emit bigrams with their frequency
       					  for (Map.Entry<String, Integer> entry : SUM_STRIPES.entrySet()) {
            				 String secondWord = entry.getKey();
