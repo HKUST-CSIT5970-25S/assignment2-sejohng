@@ -100,18 +100,21 @@ public class CORStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
-			Iterator<String> iterator = sorted_word_set.iterator();
-			while (iterator.hasNext()) {
-				String word1 = iterator.next();
-				for (String word2 : sorted_word_set) {
-					if (!word1.equals(word2)) {
-						// Create a map for each word pair (word1, word2) with frequency 1
-						word_stripes.put(new Text(word2), new IntWritable(1));
+			MapWritable word_stripes = new MapWritable();  
+			
+				Iterator<String> iterator = sorted_word_set.iterator();
+				while (iterator.hasNext()) {
+					String word1 = iterator.next();
+					for (String word2 : sorted_word_set) {
+						if (!word1.equals(word2)) {
+					
+							word_stripes.put(new Text(word2), new IntWritable(1));
+						}
 					}
-				}
-				context.write(new Text(word1), word_stripes);
-			}
-		}
+					context.write(new Text(word1), word_stripes);
+
+	}
+}
 	}
 
 	/*
@@ -210,11 +213,18 @@ public class CORStripes extends Configured implements Tool {
 			
 				if (word1Frequency != null) {
 					// For each word pair in the combined stripe, calculate the correlation coefficient
-					for (Map.Entry<Writable, Writable> entry : combinedStripe.entrySet()) {
-						String word2 = entry.getKey().toString();
-						Integer word2Frequency = word_total_map.get(word2.toLowerCase());
-						
-						// Calculate the correlation coefficient only if word2 exists and word1 < word2 to avoid duplicates
+
+						Set<Map.Entry<Writable, Writable>> sortedEntries = new TreeSet<Map.Entry<Writable, Writable>>(new Comparator<Map.Entry<Writable, Writable>>() {
+
+								public int compare(Map.Entry<Writable, Writable> e1, Map.Entry<Writable, Writable> e2) {
+									return e1.getKey().toString().compareTo(e2.getKey().toString());
+								}
+							});
+							sortedEntries.addAll(combinedStripe.entrySet());
+					
+							for (Map.Entry<Writable, Writable> entry : sortedEntries) {
+								String word2 = entry.getKey().toString();
+								Integer word2Frequency = word_total_map.get(word2.toLowerCase());
 						if (word2Frequency != null && word1.compareTo(word2) < 0) {
 			
 							double correlation = ((IntWritable) entry.getValue()).get() / (double) (word1Frequency * word2Frequency);

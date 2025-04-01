@@ -25,6 +25,7 @@ hk/ust/csit5970/CORPairs$CORReducer1.class
 hk/ust/csit5970/AnalyzeBigramFrequency.class
 hk/ust/csit5970/MapUtil$1.class
 hk/ust/csit5970/CORPairs$CORPairsCombiner2.class
+hk/ust/csit5970/CORStripes$CORStripesReducer2$1.class
 hk/ust/csit5970/CORPairs$CORPairsReducer2.class
 hk/ust/csit5970/WordCount$WordCountReducer.class
 hk/ust/csit5970/BigramFrequencyStripes$MyCombiner.class
