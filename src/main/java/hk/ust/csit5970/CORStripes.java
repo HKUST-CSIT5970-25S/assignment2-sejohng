@@ -193,43 +193,42 @@ public class CORStripes extends Configured implements Tool {
 			MapWritable combinedStripe = new MapWritable();
 			
 				for (MapWritable stripe : values) {
+        for (Map.Entry<Writable, Writable> entry : stripe.entrySet()) {
+            Writable wordPair = entry.getKey();
+            IntWritable currentFrequency = (IntWritable) combinedStripe.get(wordPair);
+            
+            if (currentFrequency == null) {
+                combinedStripe.put(wordPair, new IntWritable(((IntWritable) entry.getValue()).get()));
+            } else {
+                currentFrequency.set(currentFrequency.get() + ((IntWritable) entry.getValue()).get());
+            }
+        }
+    }
 
-					for (Map.Entry<Writable, Writable> entry : stripe.entrySet()) {
-						Writable wordPair = entry.getKey();
-						IntWritable currentFrequency = (IntWritable) combinedStripe.get(wordPair);
-						
-						// If the word pair isn't found in the combined map, initialize it; otherwise, increment its frequency
-						if (currentFrequency == null) {
-							combinedStripe.put(wordPair, new IntWritable(((IntWritable) entry.getValue()).get()));
-						} else {
-							currentFrequency.set(currentFrequency.get() + ((IntWritable) entry.getValue()).get());
-						}
-					}
-				}
-			
-				String word1 = key.toString();
-		
-				Integer word1Frequency = word_total_map.get(word1.toLowerCase());
-			
-				if (word1Frequency != null) {
-					// For each word pair in the combined stripe, calculate the correlation coefficient
+    String word1 = key.toString();
 
-						Set<Map.Entry<Writable, Writable>> sortedEntries = new TreeSet<Map.Entry<Writable, Writable>>(new Comparator<Map.Entry<Writable, Writable>>() {
+    Integer word1Frequency = word_total_map.get(word1.toLowerCase());
+    
+    if (word1Frequency != null) {
 
-								public int compare(Map.Entry<Writable, Writable> e1, Map.Entry<Writable, Writable> e2) {
-									return e1.getKey().toString().compareTo(e2.getKey().toString());
-								}
-							});
-							sortedEntries.addAll(combinedStripe.entrySet());
-					
-							for (Map.Entry<Writable, Writable> entry : sortedEntries) {
-								String word2 = entry.getKey().toString();
-								Integer word2Frequency = word_total_map.get(word2.toLowerCase());
-						if (word2Frequency != null && word1.compareTo(word2) < 0) {
-			
-							double correlation = ((IntWritable) entry.getValue()).get() / (double) (word1Frequency * word2Frequency);
-							
-							context.write(new PairOfStrings(word1, word2), new DoubleWritable(correlation));
+        Set<Map.Entry<Writable, Writable>> sortedEntries = new TreeSet<Map.Entry<Writable, Writable>>(new Comparator<Map.Entry<Writable, Writable>>() {
+            public int compare(Map.Entry<Writable, Writable> e1, Map.Entry<Writable, Writable> e2) {
+    
+                String word2_1 = e1.getKey().toString();
+                String word2_2 = e2.getKey().toString();
+                return word2_1.compareTo(word2_2);
+            }
+        });
+        
+        sortedEntries.addAll(combinedStripe.entrySet());
+
+        for (Map.Entry<Writable, Writable> entry : sortedEntries) {
+            String word2 = entry.getKey().toString();
+            Integer word2Frequency = word_total_map.get(word2.toLowerCase());
+            if (word2Frequency != null && word1.compareTo(word2) < 0) {
+            
+                double correlation = ((IntWritable) entry.getValue()).get() / (double) (word1Frequency * word2Frequency);
+                context.write(new PairOfStrings(word1, word2), new DoubleWritable(correlation));
 						}
 					}
 				}
