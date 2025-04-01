@@ -51,10 +51,25 @@ public class CORStripes extends Configured implements Tool {
 			/*
 			 * TODO: Your implementation goes here.
 			 */
-					while (doc_tokenizer.hasMoreTokens()) {
-						String word = doc_tokenizer.nextToken();
-						KEY.set(word);
-						context.write(KEY, ONE);
+
+			while (doc_tokenizer.hasMoreTokens()) {
+				String word = doc_tokenizer.nextToken().toLowerCase().trim();
+				if (!word.isEmpty()) {
+					if (word_set.containsKey(word)) {
+						word_set.put(word, word_set.get(word) + 1);
+					} else {
+						word_set.put(word, 1);
+					}
+				}
+			}
+			
+			Text wordText = new Text();
+			IntWritable wordCount = new IntWritable();
+			for (String word : word_set.keySet()) {
+				wordText.set(word);
+				wordCount.set(word_set.get(word));
+				context.write(wordText, wordCount);
+
 					}
 		}
 	}
